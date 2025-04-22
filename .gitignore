@@ -1,0 +1,28 @@
+# macOS metadata files
+.DS_Store
+
+pdfs/
+csv/
+sql/
+assets/
+
+# Node.js dependencies
+node_modules/
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+logs/
+*.log
+
+# Build directories
+dist/
+build/
+
+# IDE settings
+.vscode/
+.idea/
+
+# Environment variables
+.env
