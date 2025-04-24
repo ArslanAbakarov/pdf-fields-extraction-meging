@@ -15,7 +15,6 @@
 
 import os, re, json, sys
 import fitz                                  # PyMuPDF ≥1.23
-import pandas as pd
 from rapidfuzz import process, fuzz
 from dotenv import load_dotenv
 from openai import OpenAI
@@ -28,27 +27,36 @@ MODEL          = "gpt-4o-mini"   # change if you have a preferred model
 FUZZ_THRESHOLD = 70              # ≥ this: accept fuzzy match, else LLM
 
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+# Check API key
 if not client.api_key:
     sys.exit("⚠️  OPENAI_API_KEY missing (set env var or .env)")
-
-# ----------------------------------------------------------------------------
-# 1. CSV → lookup + JSON list for LLM
-# ----------------------------------------------------------------------------
-
-DF = pd.read_csv("./csv/merge_fields.csv")
-DF["desc"] = DF.MERGE_FIELD_DESCRIPTION.str.lower().str.strip()
-LOOKUP = dict(zip(DF.desc, DF.MERGE_FIELD_ID))
-CHOICES_JSON = DF[["MERGE_FIELD_ID", "desc"]].to_dict(orient="records")
-CHOICES_STR  = json.dumps(CHOICES_JSON, ensure_ascii=False)
-
-# ----------------------------------------------------------------------------
-# 2. Text‑cleaning and geometry helpers
-# ----------------------------------------------------------------------------
 
 def clean(txt: str) -> str:
     """Lower‑case, collapse underscores/blanks → single spaces."""
     return re.sub(r"[_\s]+", " ", txt).strip().lower()
 
+# ----------------------------------------------------------------------------
+# 1. JSON → lookup + JSON list for LLM using widgets.json
+# ----------------------------------------------------------------------------
+
+with open("./json/widgets.json", "r", encoding="utf-8") as f:
+    widgets_data = json.load(f)
+LOOKUP = { clean(widget["label_before"]) : widget["field_name"] for widget in widgets_data }
+CHOICES_JSON = [
+    {
+        "field_name": widget["field_name"],
+        "label_before": clean(widget["label_before"]),
+        "document_heading": widget["page_heading"],
+        "text_after": widget["text_after"],
+        "summary": widget["summary"]
+    } for widget in widgets_data
+]
+CHOICES_STR = json.dumps(CHOICES_JSON, ensure_ascii=False)
+VALID_FIELD_NAMES = { widget["field_name"] for widget in widgets_data }
+
+# ----------------------------------------------------------------------------
+# 2. Text‑cleaning and geometry helpers
+# ----------------------------------------------------------------------------
 
 def find_label(widget_rect, blocks):
     """Return the label text most likely describing widget_rect."""
@@ -72,24 +80,26 @@ def find_label(widget_rect, blocks):
 # 3. Ask OpenAI once per unresolved label
 # ----------------------------------------------------------------------------
 
-def llm_choose_id(label: str) -> str | None:
+def llm_choose_id(label: str, doc_summary: str = "") -> str | None:
     prompt = (
-        "You are a helpful assistant that maps raw form field labels to canonical merge field IDs.\n"
-        "Output ONLY the matching MERGE_FIELD_ID from the list below, nothing else.\n\n"
-        f"Label: {label!r}\n\nAvailable IDs with descriptions (JSON):\n{CHOICES_STR}"
+        "You are a helpful assistant that maps raw form field labels to canonical widget field names.\n"
+        "Output ONLY the matching field_name from the list below, nothing else.\n\n"
+        f"Label: {label!r}\n"
+        f"Current Document Summary: {doc_summary or 'None'}\n\n"
+        f"Available widget field names with descriptions (JSON):\n{CHOICES_STR}"
     )
     try:
         resp = client.chat.completions.create(
             model=MODEL,
             messages=[
-                {"role": "system", "content": "Return only a valid MERGE_FIELD_ID from the list."},
+                {"role": "system", "content": "Return only a valid field_name from the list."},
                 {"role": "user",   "content": prompt},
             ],
             temperature=0,
             max_tokens=10,
         )
         candidate = resp.choices[0].message.content.strip().split()[0]
-        return candidate if candidate in DF.MERGE_FIELD_ID.values else None
+        return candidate if candidate in VALID_FIELD_NAMES else None
     except Exception as exc:
         print("[LLM‑error]", exc)
         return None
@@ -102,7 +112,8 @@ IN_PDF  = "./pdfs/forms/form1_blank.pdf"
 OUT_PDF = "./pdfs/forms/form1_renamed.pdf"
 
 doc = fitz.open(IN_PDF)
-doc.need_appearances(True)  
+doc.need_appearances(True)
+DOC_SUMMARY = doc.metadata.get("subject", "")
 
 for page in doc:
     raw_blocks = page.get_text("blocks")
@@ -123,7 +134,7 @@ for page in doc:
         if score >= FUZZ_THRESHOLD:
             new_id = LOOKUP[match]
         else:
-            new_id = llm_choose_id(label)
+            new_id = llm_choose_id(label, DOC_SUMMARY)
             if not new_id:
                 print(f"⚠️ Unresolved label: {label_raw!r}")
                 continue

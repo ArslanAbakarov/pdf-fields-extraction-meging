@@ -1,10 +1,15 @@
 # macOS metadata files
 .DS_Store
 
-pdfs/
-csv/
-sql/
-assets/
+pdfs/*.pdf
+csv/*.csv
+sql/*.sql
+
+assets/*.pdf
+assets/*.csv
+assets/*.json
+assets/*.txt
+assets/*.zip
 
 # Node.js dependencies
 node_modules/
