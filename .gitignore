@@ -1,9 +1,14 @@
 # macOS metadata files
 .DS_Store
 
+*.pkl
+*.faiss
+
 pdfs/*.pdf
 csv/*.csv
 sql/*.sql
+*.zip
+*.pdf
 
 assets/*.pdf
 assets/*.csv
