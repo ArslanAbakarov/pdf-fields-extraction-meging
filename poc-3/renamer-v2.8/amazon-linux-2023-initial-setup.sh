@@ -1,7 +1,8 @@
+dnf install -y iproute
 dnf install -y unzip
-dnf install mc
-dnf install nano
-dnf install wget
+dnf install -y mc
+dnf install -y nano
+dnf install -y wget
 dnf install -y git
 dnf install python3.12
 curl -O https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
