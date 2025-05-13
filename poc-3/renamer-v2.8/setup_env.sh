@@ -15,9 +15,9 @@ pip install \
     opencv-python-headless \
     pytesseract \
     rapidfuzz \
-    tqdm \
-    fastapi \
-    uvicorn
+    tqdm
+pip install fastapi
+pip install uvicorn
 
 pip install python-multipart
 pip install pymupdf
