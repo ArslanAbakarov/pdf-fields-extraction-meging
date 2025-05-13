@@ -54,7 +54,7 @@ def build_index(catalog_file, out_json, model="minilm", gpu=True):
     
     # Check if we have any documents to process
     if not documents:
-        tqdm.write("\n⚠️ No documents found in the catalog file! Please check your catalog format.")
+        tqdm.write("\nNo documents found in the catalog file! Please check your catalog format.")
         tqdm.write("The catalog should have a top-level 'documents' or 'docs' key containing document data.")
         return  # Exit the function early
     
@@ -182,7 +182,7 @@ def build_index(catalog_file, out_json, model="minilm", gpu=True):
     
     # Stack vectors and normalize
     if not vecs:
-        tqdm.write("\n⚠️ No vectors were generated! Cannot create index.")
+        tqdm.write("\nNo vectors were generated! Cannot create index.")
         return  # Exit the function early
         
     vecs = np.vstack(vecs)
@@ -230,11 +230,11 @@ def build_index(catalog_file, out_json, model="minilm", gpu=True):
     end_time = time.time()
     total_time = end_time - start_time
     
-    tqdm.write(f"\n✅ Successfully completed indexing")
-    tqdm.write(f"📊 Indexed {len(index['documents'])} documents")
+    tqdm.write(f"\nSuccessfully completed indexing")
+    tqdm.write(f"Indexed {len(index['documents'])} documents")
     total_widgets = sum(len(doc['widgets']) for doc in index['documents'])
-    tqdm.write(f"📊 Total widgets indexed: {total_widgets}")
-    tqdm.write(f"⏱️  Total processing time: {total_time:.2f} seconds")
+    tqdm.write(f"Total widgets indexed: {total_widgets}")
+    tqdm.write(f"⏱Total processing time: {total_time:.2f} seconds")
 
 if __name__ == "__main__":
     ap = argparse.ArgumentParser()

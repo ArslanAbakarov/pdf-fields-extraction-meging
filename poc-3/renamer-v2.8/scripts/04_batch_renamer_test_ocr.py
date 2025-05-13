@@ -304,13 +304,13 @@ def propose_names(pdf_in, loaded_indexes, device, k=1, threshold=None, similarit
     # Print summary
     tqdm.write(f"\nProcessed {len(doc)} pages and {total_counter} form fields in {elapsed:.2f} seconds")
     tqdm.write(f"Processing time per field: {per_field_time*1000:.2f} ms")
-    tqdm.write(f"   ==> Match rate (current = proposed): {match_rate*100:.2f}%")
+    tqdm.write(f"✅ ==> Match rate (current = proposed): {match_rate*100:.2f}%")
     
     # Report OCR usage
     if ocr_counter > 0:
         tqdm.write(f"OCR was used for {ocr_counter} fields ({ocr_rate*100:.2f}% of total)")
     else:
-        tqdm.write(f"No fields required OCR assistance")
+        tqdm.write(f"   No fields required OCR assistance")
     
     tqdm.write(f"Results saved to: {report_csv_path}")
     
