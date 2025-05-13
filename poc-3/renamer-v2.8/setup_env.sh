@@ -6,6 +6,7 @@ conda remove -n "$ENV_NAME" --all -y
 
 echo "[*] Creating new env: $ENV_NAME"
 conda create -n "$ENV_NAME" python=3.12 numpy=1.26 -y
+conda activate "$ENV_NAME"
 
 echo "[*] Installing pip packages"
 pip install \
@@ -28,11 +29,11 @@ pip install torch==2.4.0 torchvision==0.19.0 torchaudio==2.4.0
 pip install paddleocr==2.6.1.1
 pip install paddlepaddle==2.5.2 -f https://www.paddlepaddle.org.cn/whl/linux/mavl.html
 
-conda install -c conda-forge faiss-cpu
-conda install -c conda-forge numpy=1.24.4
-conda install -c conda-forge pytorch
-conda install -c tqdm
-conda install -c conda-forge opencv
+conda install -c conda-forge faiss-cpu -y
+conda install -c conda-forge numpy=1.24.4 -y
+conda install -c conda-forge pytorch -y
+conda install -c tqdm -y
+conda install -c conda-forge opencv -y
 
 echo "[*] Activating env"
 source "$(conda info --base)/etc/profile.d/conda.sh"
