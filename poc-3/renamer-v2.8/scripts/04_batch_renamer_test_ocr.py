@@ -195,7 +195,7 @@ def propose_names(pdf_in, loaded_indexes, device, k=1, threshold=None, similarit
     ocr_counter = 0
     index_usage_counts = {prefix: 0 for prefix, _, _, _ in loaded_indexes}
     
-    tqdm.write(f"\nProcessing file: {base_name}")
+    tqdm.write(f"\nProcessing file: {base_name}.pdf - ({pdf_in})")
     
     with open(report_csv_path, 'w', newline='') as report_csv:
         writer = csv.writer(report_csv, quoting=csv.QUOTE_ALL)  # Quote all fields
@@ -310,7 +310,7 @@ def propose_names(pdf_in, loaded_indexes, device, k=1, threshold=None, similarit
     if ocr_counter > 0:
         tqdm.write(f"OCR was used for {ocr_counter} fields ({ocr_rate*100:.2f}% of total)")
     else:
-        tqdm.write(f"   No fields required OCR assistance")
+        tqdm.write(f"No fields required OCR assistance")
     
     tqdm.write(f"Results saved to: {report_csv_path}")
     
