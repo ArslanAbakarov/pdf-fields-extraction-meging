@@ -15,7 +15,8 @@ pip install \
     opencv-python-headless \
     pytesseract \
     rapidfuzz \
-    tqdm
+    tqdm \
+    uvicorn
 
 pip install pymupdf
 

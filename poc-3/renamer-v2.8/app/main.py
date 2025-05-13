@@ -18,7 +18,7 @@ try:
     from app.renamer import rename_pdf
     logger.info("Using full vector-based renamer")
     USE_FULL_RENAMER = True
-except Exception as e:1
+except Exception as e:
     logger.warning(f"Could not load full renamer: {e}")
     logger.info("Using simplified text-based renamer")
     USE_FULL_RENAMER = False
