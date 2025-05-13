@@ -1,4 +1,4 @@
-name: faiss-gpu
+name: xenex
 channels:
   - conda-forge
   - pytorch
