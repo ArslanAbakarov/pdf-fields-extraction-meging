@@ -1,27 +1,11 @@
 # app/renamer.py
-import faiss, pickle, fitz, tempfile, io, logging
+import faiss, pickle, fitz, tempfile, io
 from sentence_transformers import SentenceTransformer
 
-try:
-    EMBEDDER = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
-    INDEX = faiss.read_index("widget_minilm.faiss")
-    metadata = pickle.load(open("widget_minilm_metadata.pkl", "rb"))
-    
-    # Extract names from metadata
-    if isinstance(metadata, list):
-        if isinstance(metadata[0], dict) and "widgetName" in metadata[0]:
-            NAMES = [item["widgetName"] for item in metadata]
-        else:
-            NAMES = metadata
-    else:
-        raise ValueError("Unexpected metadata format")
-        
-    logging.info(f"Successfully loaded model and index with {len(NAMES)} widget names")
-except Exception as e:
-    logging.error(f"Error loading model or index: {e}")
-    raise RuntimeError(f"Failed to load necessary components: {e}")
-
-MARGIN = 30
+EMBEDDER = SentenceTransformer("sentence-transformers/all-MiniLM-L6-v2")
+INDEX    = faiss.read_index("widget.faiss")
+NAMES    = pickle.load(open("widget_names.pkl", "rb"))
+MARGIN   = 30
 
 def _context(page, rect):
     words = page.get_text("words")
@@ -39,28 +23,21 @@ def rename_pdf(binary: bytes, k: int = 1) -> bytes:
     doc = fitz.open(stream=binary, filetype="pdf")
     total_widgets = 0
     mapping_info = []
-    unchanged_widgets = 0  # Track unchanged widgets directly
-    
+    changed_widgets = 0
     for p in doc:
         for w in p.widgets():
             ctx = _context(p, fitz.Rect(w.rect.x0-MARGIN, w.rect.y0-MARGIN,
                                         w.rect.x1+MARGIN, w.rect.y1+MARGIN))
             if not ctx.strip():
                 continue
-                
             vec = EMBEDDER.encode([ctx], convert_to_numpy=True).astype("float32")
             _, idx = INDEX.search(vec, k)
             canonical = NAMES[idx[0][0]]
             original_name = w.field_name
-            
-            # Check if widget name remains the same
-            if canonical == original_name:
-                unchanged_widgets += 1
-            else:
-                # Only rename if the name is different
+            if canonical != w.field_name:
                 _rename_widget(doc, w, canonical)
                 w.update()
-                
+                changed_widgets += 1
             mapping_info.append({
                 "page": p.number + 1,
                 "original_name": original_name,
@@ -69,20 +46,15 @@ def rename_pdf(binary: bytes, k: int = 1) -> bytes:
             })
             total_widgets += 1
             
-    # Calculate changed widgets from total and unchanged
-    changed_widgets = total_widgets - unchanged_widgets
+    print(f"Total widgets: {total_widgets}")
+    print(f"Total pages: {len(doc)}")
+    print(f"Total fields: {len(NAMES)}")
     
-    # Log the results
-    logging.info(f"Total widgets: {total_widgets}")
-    logging.info(f"Changed widgets: {changed_widgets}")
-    logging.info(f"Unchanged widgets: {unchanged_widgets}")
-    
-    # Calculate overall accuracy as percentage of fields that remained unchanged
+    # Calculate overall accuracy as percentage of fields changed
+    unchanged_widgets = total_widgets - changed_widgets
     accuracy_rate = 0
     if total_widgets > 0:
         accuracy_rate = round((unchanged_widgets / total_widgets) * 100, 2)
-    
-    logging.info(f"Accuracy rate: {accuracy_rate}%")
     
     buf = io.BytesIO()
     doc.save(buf)          # writes the entire PDF into buf
