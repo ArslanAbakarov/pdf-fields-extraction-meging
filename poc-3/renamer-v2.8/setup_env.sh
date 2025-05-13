@@ -16,6 +16,7 @@ pip install \
     pytesseract \
     rapidfuzz \
     tqdm
+    
 pip install fastapi
 pip install uvicorn
 
