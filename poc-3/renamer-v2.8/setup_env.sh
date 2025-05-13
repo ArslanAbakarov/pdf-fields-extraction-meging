@@ -25,6 +25,8 @@ conda install -c conda-forge faiss-cpu
 onda install -c conda-forge numpy=1.24.4
 conda install -c conda-forge pytorch
 conda install -c tqdm  
+pip install paddlepaddle -f https://www.paddlepaddle.org.cn/whl/linux/mavl.html
+
 
 pip install torch torchvision torchaudio sentence-transformers
 
