@@ -17,18 +17,24 @@ import shutil
 
 # Import the shared OCR utilities
 try:
-    from ocr_utils import (
-        OCR_AVAILABLE, OCR_DPI, OCR_LANG, MARGIN,
-        extract_text_with_ocr_fallback, list_available_languages
-    )
+    import ocr_utils
+    OCR_AVAILABLE = ocr_utils.OCR_AVAILABLE
+    OCR_DPI = ocr_utils.OCR_DPI
+    OCR_LANG = ocr_utils.OCR_LANG
+    MARGIN = ocr_utils.MARGIN
+    extract_text_with_ocr_fallback = ocr_utils.extract_text_with_ocr_fallback
+    list_available_languages = ocr_utils.list_available_languages
 except ImportError:
     # If import fails, check if the module is in the parent directory
     sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     try:
-        from ocr_utils import (
-            OCR_AVAILABLE, OCR_DPI, OCR_LANG, MARGIN,
-            extract_text_with_ocr_fallback, list_available_languages
-        )
+        import ocr_utils
+        OCR_AVAILABLE = ocr_utils.OCR_AVAILABLE
+        OCR_DPI = ocr_utils.OCR_DPI
+        OCR_LANG = ocr_utils.OCR_LANG
+        MARGIN = ocr_utils.MARGIN
+        extract_text_with_ocr_fallback = ocr_utils.extract_text_with_ocr_fallback
+        list_available_languages = ocr_utils.list_available_languages
     except ImportError:
         tqdm.write("WARNING: Could not import ocr_utils module. OCR functionality will be limited.")
         # Define fallback constants
@@ -36,6 +42,69 @@ except ImportError:
         OCR_DPI = 400
         OCR_LANG = "en"
         MARGIN = 30
+        
+        # Fallback implementation of extract_text_with_ocr_fallback
+        def extract_text_with_ocr_fallback(page, rect, use_ocr=False, ocr_lang=OCR_LANG, save_debug_images=False, use_gpu=False, ocr_detector=None):
+            """Fallback implementation that only uses PyMuPDF's text extraction."""
+            try:
+                # Try to extract text using PyMuPDF's built-in text extraction
+                try:
+                    words = page.get_text("words")
+                except (TypeError, AttributeError):
+                    # For older PyMuPDF versions
+                    words = page.getText("words")
+                
+                # If words is None or empty, try alternative methods
+                if not words:
+                    try:
+                        text = page.get_text()
+                        return text.strip()
+                    except (TypeError, AttributeError):
+                        text = page.getText()
+                        return text.strip()
+                
+                # Convert the rect to a compatible format if needed
+                if not isinstance(rect, fitz.Rect):
+                    try:
+                        rect = fitz.Rect(rect)
+                    except:
+                        # If conversion fails, use the page rect
+                        rect = page.rect
+                
+                # Filter words that intersect with the provided rectangle
+                filtered_words = []
+                for w in words:
+                    try:
+                        # Try accessing by index (newer versions)
+                        if fitz.Rect(w[:4]).intersects(rect):
+                            filtered_words.append(w)
+                    except (TypeError, IndexError):
+                        # Try accessing by word attributes (older versions)
+                        if hasattr(w, 'bbox') and fitz.Rect(w.bbox).intersects(rect):
+                            filtered_words.append(w)
+                        elif hasattr(w, 'rect') and w.rect.intersects(rect):
+                            filtered_words.append(w)
+                
+                # Format the text from the words
+                text = ""
+                for w in filtered_words:
+                    try:
+                        # Try accessing by index (newer versions)
+                        text += w[4] + " "
+                    except (TypeError, IndexError):
+                        # Try accessing by word attributes (older versions)
+                        if hasattr(w, 'text'):
+                            text += w.text + " "
+                    
+                return text.strip()
+                
+            except Exception as e:
+                tqdm.write(f"WARNING: Error extracting text: {str(e)}")
+                return ""
+        
+        # Fallback implementation of list_available_languages
+        def list_available_languages():
+            return ["OCR not available. Install paddleocr or pytesseract first."]
 
 # Simple class to track OCR usage
 class OCRDetector:
