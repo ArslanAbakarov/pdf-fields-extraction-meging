@@ -304,7 +304,7 @@ def propose_names(pdf_in, loaded_indexes, device, k=1, threshold=None, similarit
     # Print summary
     tqdm.write(f"\nProcessed {len(doc)} pages and {total_counter} form fields in {elapsed:.2f} seconds")
     tqdm.write(f"Processing time per field: {per_field_time*1000:.2f} ms")
-    tqdm.write(f"==> Match rate (current = proposed): {match_rate*100:.2f}%")
+    tqdm.write(f"   ==> Match rate (current = proposed): {match_rate*100:.2f}%")
     
     # Report OCR usage
     if ocr_counter > 0:
@@ -319,7 +319,7 @@ def propose_names(pdf_in, loaded_indexes, device, k=1, threshold=None, similarit
     for idx, count in sorted(index_usage_counts.items(), key=lambda x: x[1], reverse=True):
         if count > 0:
             percent = (count / total_counter) * 100 if total_counter > 0 else 0
-            tqdm.write(f"   {idx}: {count} fields ({percent:.2f}%)")
+            tqdm.write(f"{idx}: {count} fields ({percent:.2f} percent)")
     
     return mapping, ocr_counter > 0
 

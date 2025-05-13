@@ -25,6 +25,7 @@ try:
     extract_text_with_ocr_fallback = ocr_utils.extract_text_with_ocr_fallback
     list_available_languages = ocr_utils.list_available_languages
 except ImportError:
+    print("Importing ocr_utils: ImportError")
     # If import fails, check if the module is in the parent directory
     sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     try:
