@@ -16,8 +16,11 @@ pip install \
     pytesseract \
     rapidfuzz \
     tqdm \
+    fastapi \
     uvicorn
 
+
+pip install python-multipart
 pip install pymupdf
 
 pip install paddleocr
@@ -28,7 +31,7 @@ pip install numpy==1.24.4 scipy==1.10.1
 conda install -c conda-forge faiss-cpu
 onda install -c conda-forge numpy=1.24.4
 conda install -c conda-forge pytorch
-conda install -c tqdm  
+conda install -c tqdm
 
 pip install torch==2.4.0 torchvision==0.19.0 torchaudio==2.4.0
 
