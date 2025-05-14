@@ -15,10 +15,9 @@ from tqdm import tqdm
 import re
 import shutil
 
-# Add the parent directory to Python path
+# Add the current directory to Python path
 script_dir = os.path.dirname(os.path.abspath(__file__))
-parent_dir = os.path.dirname(script_dir)
-sys.path.append(parent_dir)
+sys.path.append(script_dir)
 
 # Import the shared OCR utilities
 try:
@@ -31,7 +30,7 @@ try:
     list_available_languages = ocr_utils.list_available_languages
 except ImportError as e:
     print(f"Importing ocr_utils: {str(e)}")
-    print(f"Looking for ocr_utils in: {parent_dir}")
+    print(f"Looking for ocr_utils in: {script_dir}")
     # Define fallback constants
     OCR_AVAILABLE = False
     OCR_DPI = 400
