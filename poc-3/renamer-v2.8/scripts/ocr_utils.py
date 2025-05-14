@@ -148,9 +148,9 @@ def get_paddle_ocr_model(lang="en", use_gpu=False):
                 lang=paddle_lang,    # Language model
                 use_gpu=use_gpu,     # GPU acceleration if available
                 show_log=False,      # Disable verbose logging
-                use_mp=True,         # Use multiprocessing
+                use_mp=False,        # Disable multiprocessing to prevent object destruction
                 enable_mkldnn=True,  # Use Intel MKL-DNN acceleration if available
-                rec_batch_num=6      # Batch size for recognition
+                rec_batch_num=1      # Reduce batch size to prevent memory issues
             )
         except Exception as e:
             tqdm.write(f"WARNING: Error loading PaddleOCR model: {str(e)}")
