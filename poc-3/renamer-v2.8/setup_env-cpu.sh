@@ -1,3 +1,5 @@
+dnf install -y python3-devel mesa-libGL-devel
+
 #!/bin/bash
 ENV_NAME="xenex"
 

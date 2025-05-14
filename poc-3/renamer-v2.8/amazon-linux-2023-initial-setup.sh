@@ -1,3 +1,6 @@
+dnf update -y
+dnf install -y gcc gcc-c++ make autoconf automake libtool pkgconfig
+dnf install -y libpng-devel libjpeg-devel libtiff-devel zlib-devel
 dnf groupinstall -y "Development Tools"
 dnf install -y python3-devel mesa-libGL-devel
 dnf install -y make gcc
