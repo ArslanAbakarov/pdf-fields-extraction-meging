@@ -99,15 +99,7 @@ MARGIN = 30          # Points around widget to grab context
 _ocr_models = {}
 
 def get_paddle_ocr_model(lang="en", use_gpu=False):
-    """Get or initialize a PaddleOCR model for the specified language.
-    
-    Args:
-        lang: Language code ('en', 'ch', etc.)
-        use_gpu: Whether to use GPU acceleration
-        
-    Returns:
-        PaddleOCR model instance
-    """
+    """Get or initialize a PaddleOCR model for the specified language."""
     if not PADDLE_OCR_AVAILABLE:
         return None
         
@@ -130,7 +122,6 @@ def get_paddle_ocr_model(lang="en", use_gpu=False):
     
     # Handle language code mapping
     if '+' in lang:
-        # For multiple languages, just use English as fallback
         paddle_lang = "en"
     else:
         paddle_lang = lang_map.get(lang, lang)
@@ -142,19 +133,14 @@ def get_paddle_ocr_model(lang="en", use_gpu=False):
     if key not in _ocr_models:
         try:
             tqdm.write(f"INFO: Initializing PaddleOCR model for language: {paddle_lang}")
-            # Initialize with optimized settings
+            # Initialize with minimal settings
             _ocr_models[key] = PaddleOCR(
-                use_angle_cls=True,  # Detect text orientation
-                lang=paddle_lang,    # Language model
-                use_gpu=use_gpu,     # GPU acceleration if available
-                show_log=False,      # Disable verbose logging
-                use_mp=False,        # Disable multiprocessing to prevent object destruction
-                enable_mkldnn=True,  # Use Intel MKL-DNN acceleration if available
-                rec_batch_num=1      # Reduce batch size to prevent memory issues
+                lang=paddle_lang,
+                use_gpu=use_gpu,
+                show_log=False
             )
         except Exception as e:
             tqdm.write(f"WARNING: Error loading PaddleOCR model: {str(e)}")
-            # Fallback to English if specified language fails
             if paddle_lang != "en":
                 tqdm.write("WARNING: Falling back to English OCR model")
                 return get_paddle_ocr_model("en", use_gpu)
@@ -263,34 +249,46 @@ def paddle_ocr_text(img, lang="en", use_gpu=False):
         
         # Handle different result formats (varies by version)
         if not result or len(result) == 0:
+            tqdm.write("INFO: No text detected in image")
             return ""
         
         # Extract text from results
         text = ""
         
         # Handle both list and dict type results (API changed in different versions)
-        # PaddleOCR can return None or empty results for some images
         try:
             if isinstance(result, list):
                 # Newer versions return a list of results for each image
                 if result[0] is None:
+                    tqdm.write("INFO: OCR returned empty result")
                     return ""
                     
                 for line in result[0]:
                     if isinstance(line, (list, tuple)) and len(line) >= 2:
                         # Get text confidence pair
                         if isinstance(line[1], (list, tuple)) and len(line[1]) >= 2:
-                            text += line[1][0] + " "
+                            detected_text = line[1][0]
+                            confidence = line[1][1] if len(line[1]) > 1 else "N/A"
+                            text += detected_text + " "
+                            tqdm.write(f"OCR: '{detected_text}' (confidence: {confidence})")
                         elif isinstance(line[1], dict) and 'text' in line[1]:
-                            text += line[1]['text'] + " "
+                            detected_text = line[1]['text']
+                            confidence = line[1].get('confidence', 'N/A')
+                            text += detected_text + " "
+                            tqdm.write(f"OCR: '{detected_text}' (confidence: {confidence})")
                     elif isinstance(line, dict) and 'text' in line:
-                        text += line['text'] + " "
+                        detected_text = line['text']
+                        confidence = line.get('confidence', 'N/A')
+                        text += detected_text + " "
+                        tqdm.write(f"OCR: '{detected_text}' (confidence: {confidence})")
         except (TypeError, IndexError) as e:
-            # Handle cases where PaddleOCR returns unexpected structure
             tqdm.write(f"WARNING: PaddleOCR result parsing error: {str(e)}")
             return ""
         
-        return text.strip()
+        final_text = text.strip()
+        if final_text:
+            tqdm.write(f"OCR Summary: '{final_text}'")
+        return final_text
     except Exception as e:
         tqdm.write(f"WARNING: PaddleOCR error: {str(e)}")
         return ""
