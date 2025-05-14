@@ -16,6 +16,7 @@ import numpy as np
 import cv2
 from PIL import Image
 from tqdm import tqdm
+from contextlib import contextmanager
 
 # Try to import fitz (PyMuPDF) and check its version
 try:
@@ -94,6 +95,24 @@ if not OCR_AVAILABLE:
 OCR_DPI = 400        # DPI for OCR processing (higher for better quality)
 OCR_LANG = "eng" if TESSERACT_OCR_AVAILABLE and not PADDLE_OCR_AVAILABLE else "en"  # Default language code
 MARGIN = 30          # Points around widget to grab context
+
+@contextmanager
+def paddle_ocr_context(lang="en", use_gpu=False):
+    """Context manager for PaddleOCR to ensure proper cleanup."""
+    ocr = None
+    try:
+        ocr = PaddleOCR(
+            lang=lang,
+            use_gpu=use_gpu,
+            show_log=False
+        )
+        yield ocr
+    finally:
+        if ocr is not None:
+            try:
+                del ocr
+            except:
+                pass
 
 def get_paddle_ocr_model(lang="en", use_gpu=False):
     """Get a fresh PaddleOCR model instance."""
@@ -212,64 +231,64 @@ def paddle_ocr_text(img, lang="en", use_gpu=False):
         return ""
     
     try:
-        # Get a fresh OCR model
-        ocr_model = get_paddle_ocr_model(lang, use_gpu)
-        if ocr_model is None:
-            return ""
-        
-        # Ensure image is in RGB format (PaddleOCR expects RGB)
-        if len(img.shape) == 2:  # Grayscale
-            img_rgb = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
-        elif img.shape[2] == 3:  # BGR
-            img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        else:
-            img_rgb = img
-        
-        # Run OCR detection
-        result = ocr_model.ocr(img_rgb, cls=True)
-        
-        # Handle different result formats (varies by version)
-        if not result or len(result) == 0:
-            tqdm.write("INFO: No text detected in image")
-            return ""
-        
-        # Extract text from results
-        text = ""
-        
-        # Handle both list and dict type results (API changed in different versions)
-        try:
-            if isinstance(result, list):
-                # Newer versions return a list of results for each image
-                if result[0] is None:
-                    tqdm.write("INFO: OCR returned empty result")
-                    return ""
-                    
-                for line in result[0]:
-                    if isinstance(line, (list, tuple)) and len(line) >= 2:
-                        # Get text confidence pair
-                        if isinstance(line[1], (list, tuple)) and len(line[1]) >= 2:
-                            detected_text = line[1][0]
-                            confidence = line[1][1] if len(line[1]) > 1 else "N/A"
+        # Use context manager for PaddleOCR
+        with paddle_ocr_context(lang, use_gpu) as ocr_model:
+            if ocr_model is None:
+                return ""
+            
+            # Ensure image is in RGB format (PaddleOCR expects RGB)
+            if len(img.shape) == 2:  # Grayscale
+                img_rgb = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
+            elif img.shape[2] == 3:  # BGR
+                img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+            else:
+                img_rgb = img
+            
+            # Run OCR detection
+            result = ocr_model.ocr(img_rgb, cls=True)
+            
+            # Handle different result formats (varies by version)
+            if not result or len(result) == 0:
+                tqdm.write("INFO: No text detected in image")
+                return ""
+            
+            # Extract text from results
+            text = ""
+            
+            # Handle both list and dict type results (API changed in different versions)
+            try:
+                if isinstance(result, list):
+                    # Newer versions return a list of results for each image
+                    if result[0] is None:
+                        tqdm.write("INFO: OCR returned empty result")
+                        return ""
+                        
+                    for line in result[0]:
+                        if isinstance(line, (list, tuple)) and len(line) >= 2:
+                            # Get text confidence pair
+                            if isinstance(line[1], (list, tuple)) and len(line[1]) >= 2:
+                                detected_text = line[1][0]
+                                confidence = line[1][1] if len(line[1]) > 1 else "N/A"
+                                text += detected_text + " "
+                                tqdm.write(f"OCR: '{detected_text}' (confidence: {confidence})")
+                            elif isinstance(line[1], dict) and 'text' in line[1]:
+                                detected_text = line[1]['text']
+                                confidence = line[1].get('confidence', 'N/A')
+                                text += detected_text + " "
+                                tqdm.write(f"OCR: '{detected_text}' (confidence: {confidence})")
+                        elif isinstance(line, dict) and 'text' in line:
+                            detected_text = line['text']
+                            confidence = line.get('confidence', 'N/A')
                             text += detected_text + " "
                             tqdm.write(f"OCR: '{detected_text}' (confidence: {confidence})")
-                        elif isinstance(line[1], dict) and 'text' in line[1]:
-                            detected_text = line[1]['text']
-                            confidence = line[1].get('confidence', 'N/A')
-                            text += detected_text + " "
-                            tqdm.write(f"OCR: '{detected_text}' (confidence: {confidence})")
-                    elif isinstance(line, dict) and 'text' in line:
-                        detected_text = line['text']
-                        confidence = line.get('confidence', 'N/A')
-                        text += detected_text + " "
-                        tqdm.write(f"OCR: '{detected_text}' (confidence: {confidence})")
-        except (TypeError, IndexError) as e:
-            tqdm.write(f"WARNING: PaddleOCR result parsing error: {str(e)}")
-            return ""
-        
-        final_text = text.strip()
-        if final_text:
-            tqdm.write(f"OCR Summary: '{final_text}'")
-        return final_text
+            except (TypeError, IndexError) as e:
+                tqdm.write(f"WARNING: PaddleOCR result parsing error: {str(e)}")
+                return ""
+            
+            final_text = text.strip()
+            if final_text:
+                tqdm.write(f"OCR Summary: '{final_text}'")
+            return final_text
     except Exception as e:
         tqdm.write(f"WARNING: PaddleOCR error: {str(e)}")
         return ""
