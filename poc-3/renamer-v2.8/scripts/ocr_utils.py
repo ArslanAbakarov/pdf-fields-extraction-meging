@@ -231,64 +231,40 @@ def paddle_ocr_text(img, lang="en", use_gpu=False):
         return ""
     
     try:
-        # Use context manager for PaddleOCR
-        with paddle_ocr_context(lang, use_gpu) as ocr_model:
-            if ocr_model is None:
-                return ""
+        # Create a fresh OCR instance
+        ocr = PaddleOCR(
+            lang=lang,
+            use_gpu=use_gpu,
+            show_log=False,
+            use_angle_cls=False,  # Disable angle detection
+            use_mp=False,  # Disable multiprocessing
+            rec_batch_num=1  # Process one image at a time
+        )
+        
+        # Ensure image is in RGB format
+        if len(img.shape) == 2:  # Grayscale
+            img_rgb = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
+        elif img.shape[2] == 3:  # BGR
+            img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        else:
+            img_rgb = img
+        
+        # Run OCR
+        result = ocr.ocr(img_rgb, cls=False)
+        
+        if not result or len(result) == 0:
+            return ""
             
-            # Ensure image is in RGB format (PaddleOCR expects RGB)
-            if len(img.shape) == 2:  # Grayscale
-                img_rgb = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
-            elif img.shape[2] == 3:  # BGR
-                img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-            else:
-                img_rgb = img
-            
-            # Run OCR detection
-            result = ocr_model.ocr(img_rgb, cls=True)
-            
-            # Handle different result formats (varies by version)
-            if not result or len(result) == 0:
-                tqdm.write("INFO: No text detected in image")
-                return ""
-            
-            # Extract text from results
-            text = ""
-            
-            # Handle both list and dict type results (API changed in different versions)
-            try:
-                if isinstance(result, list):
-                    # Newer versions return a list of results for each image
-                    if result[0] is None:
-                        tqdm.write("INFO: OCR returned empty result")
-                        return ""
-                        
-                    for line in result[0]:
-                        if isinstance(line, (list, tuple)) and len(line) >= 2:
-                            # Get text confidence pair
-                            if isinstance(line[1], (list, tuple)) and len(line[1]) >= 2:
-                                detected_text = line[1][0]
-                                confidence = line[1][1] if len(line[1]) > 1 else "N/A"
-                                text += detected_text + " "
-                                tqdm.write(f"OCR: '{detected_text}' (confidence: {confidence})")
-                            elif isinstance(line[1], dict) and 'text' in line[1]:
-                                detected_text = line[1]['text']
-                                confidence = line[1].get('confidence', 'N/A')
-                                text += detected_text + " "
-                                tqdm.write(f"OCR: '{detected_text}' (confidence: {confidence})")
-                        elif isinstance(line, dict) and 'text' in line:
-                            detected_text = line['text']
-                            confidence = line.get('confidence', 'N/A')
-                            text += detected_text + " "
-                            tqdm.write(f"OCR: '{detected_text}' (confidence: {confidence})")
-            except (TypeError, IndexError) as e:
-                tqdm.write(f"WARNING: PaddleOCR result parsing error: {str(e)}")
-                return ""
-            
-            final_text = text.strip()
-            if final_text:
-                tqdm.write(f"OCR Summary: '{final_text}'")
-            return final_text
+        # Extract text
+        text = ""
+        for line in result[0]:
+            if isinstance(line, (list, tuple)) and len(line) >= 2:
+                detected_text = line[1][0]
+                text += detected_text + " "
+                tqdm.write(f"OCR: '{detected_text}'")
+        
+        return text.strip()
+        
     except Exception as e:
         tqdm.write(f"WARNING: PaddleOCR error: {str(e)}")
         return ""
@@ -345,155 +321,29 @@ def tesseract_ocr_text(img, lang="eng"):
         return ""
 
 def ocr_text(page, rect, dpi=OCR_DPI, lang=OCR_LANG, save_images=False, use_gpu=False):
-    """Extract text from image using available OCR engines with advanced preprocessing.
-    
-    Args:
-        page: PyMuPDF page object
-        rect: Rectangle area to extract text from
-        dpi: DPI for OCR processing (higher values = better quality but slower)
-        lang: OCR language(s) to use
-        save_images: Whether to save debug images of preprocessing steps
-        use_gpu: Whether to use GPU acceleration (PaddleOCR only)
-        
-    Returns:
-        Extracted text as string
-    """
+    """Extract text from image using available OCR engines."""
     if not OCR_AVAILABLE:
         return ""
     
-    # Set language based on available engines
-    paddle_lang = lang
-    tesseract_lang = lang
-    
-    # Convert between language formats if needed
-    if PADDLE_OCR_AVAILABLE and lang.startswith("eng"):
-        paddle_lang = "en"
-    elif TESSERACT_OCR_AVAILABLE and lang == "en":
-        tesseract_lang = "eng"
-    
-    # Log which OCR engine we're using
-    if PADDLE_OCR_AVAILABLE:
-        engine = "PaddleOCR"
-        ocr_lang = paddle_lang
-    else:
-        engine = "Tesseract"
-        ocr_lang = tesseract_lang
-        
-    tqdm.write(f"INFO: Using {engine} for page {page.number + 1} with language: {ocr_lang}")
-    zoom = dpi / 72
-    
-    # Create a transformation matrix - using a simple zoom matrix that's compatible with all PyMuPDF versions
-    matrix = fitz.Matrix(zoom, zoom)
-    
-    # Ensure the rectangle is valid
-    if rect.is_empty or rect.is_infinite:
-        # Use the entire page if rect is invalid
-        rect = page.rect
-    
-    # Create a pixmap for the specified area
     try:
+        # Create pixmap
+        zoom = dpi / 72
+        matrix = fitz.Matrix(zoom, zoom)
         pix = page.get_pixmap(matrix=matrix, clip=rect)
         img_data = pix.tobytes("png")
         img = Image.open(io.BytesIO(img_data))
         
-        # Convert to grayscale for processing
-        gray = np.array(img.convert('L'))
+        # Convert to numpy array
+        img_np = np.array(img)
         
-        # Validate image size - skip very small images that might cause OCR errors
-        if gray.shape[0] < 20 or gray.shape[1] < 20:
-            tqdm.write(f"WARNING: Image too small for OCR: {gray.shape}")
-            return ""
+        # Use PaddleOCR
+        if PADDLE_OCR_AVAILABLE:
+            return paddle_ocr_text(img_np, lang=lang, use_gpu=use_gpu)
             
-        # Skip blank or nearly blank images
-        if np.mean(gray) > 250 or np.mean(gray) < 5:
-            tqdm.write(f"WARNING: Image appears to be blank (mean pixel value: {np.mean(gray):.1f})")
-            return ""
+        return ""
         
-        # Create debug directory if saving images
-        if save_images:
-            debug_dir = os.path.join(tempfile.gettempdir(), "ocr_debug")
-            os.makedirs(debug_dir, exist_ok=True)
-            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            page_name = f"page_{page.number+1}_{timestamp}"
-            debug_page_dir = os.path.join(debug_dir, page_name)
-            os.makedirs(debug_page_dir, exist_ok=True)
-            tqdm.write(f"INFO: Saving debug images to: {debug_page_dir}")
-            
-            # Save original image
-            cv2.imwrite(os.path.join(debug_page_dir, "00_original.png"), gray)
-        
-        # Get multiple preprocessed versions of the image
-        preprocessed_images = preprocess_image_for_ocr(gray)
-        
-        # Save preprocessed images if debugging
-        if save_images:
-            for i, (name, img) in enumerate(preprocessed_images):
-                cv2.imwrite(os.path.join(debug_page_dir, f"{i+1:02d}_{name}.png"), img)
-        
-        # Try each preprocessing method and collect results
-        results = []
-        
-        for name, img in preprocessed_images:
-            # Apply OCR with the appropriate engine
-            if PADDLE_OCR_AVAILABLE:
-                try:
-                    # Convert to RGB for PaddleOCR (if not already)
-                    img_rgb = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
-                    result_text = paddle_ocr_text(img_rgb, lang=paddle_lang, use_gpu=use_gpu)
-                except Exception as e:
-                    tqdm.write(f"WARNING: Error applying PaddleOCR to {name} image: {str(e)}")
-                    result_text = ""
-            else:
-                # Use Tesseract
-                result_text = tesseract_ocr_text(img, lang=tesseract_lang)
-            
-            # Calculate confidence based on text length and quality
-            if result_text.strip():
-                words = result_text.strip().split()
-                confidence = len(words)  # Basic confidence based on word count
-                
-                # Apply bonuses for specific preprocessing methods
-                if name in ['clahe_otsu', 'adaptive']:
-                    confidence *= 1.2
-                
-                # Check for reasonable average word length
-                char_count = len(''.join(words))
-                avg_word_len = char_count / len(words) if words else 0
-                if 3 <= avg_word_len <= 10:  # Typical English word length
-                    confidence *= 1.1
-                
-                results.append({
-                    'text': result_text.strip(),
-                    'method': name,
-                    'confidence': confidence,
-                    'word_count': len(words)
-                })
-        
-        # Select the best result based on confidence
-        if results:
-            # Sort by confidence score (descending)
-            results.sort(key=lambda x: x['confidence'], reverse=True)
-            best_result = results[0]
-            tqdm.write(f"SUCCESS: Best OCR method: {best_result['method']} with {best_result['word_count']} words")
-            return best_result['text']
-        else:
-            # Try one more time with original image directly
-            if PADDLE_OCR_AVAILABLE:
-                try:
-                    img_rgb = cv2.cvtColor(gray, cv2.COLOR_GRAY2RGB)
-                    return paddle_ocr_text(img_rgb, lang=paddle_lang, use_gpu=use_gpu)
-                except Exception as e:
-                    tqdm.write(f"WARNING: Error applying PaddleOCR to original image: {str(e)}")
-                    # Fall back to Tesseract if PaddleOCR fails
-                    if TESSERACT_OCR_AVAILABLE:
-                        return tesseract_ocr_text(gray, lang=tesseract_lang)
-                    return ""
-            else:
-                return tesseract_ocr_text(gray, lang=tesseract_lang)
-            
     except Exception as e:
-        error_msg = str(e)
-        tqdm.write(f"WARNING: OCR error: {error_msg}")
+        tqdm.write(f"WARNING: OCR error: {str(e)}")
         return ""
 
 def extract_text_with_ocr_fallback(page, rect, use_ocr=False, ocr_lang=OCR_LANG, save_debug_images=False, use_gpu=False, ocr_detector=None):
