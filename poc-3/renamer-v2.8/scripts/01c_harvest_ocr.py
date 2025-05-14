@@ -21,10 +21,19 @@ sys.path.append(script_dir)
 
 # Import the shared OCR utilities
 try:
+    # Try Tesseract first
+    import pytesseract
+    TESSERACT_AVAILABLE = True
+    print("INFO: Tesseract OCR available")
+except ImportError:
+    TESSERACT_AVAILABLE = False
+    print("WARNING: Tesseract not found, will try PaddleOCR")
+
+try:
     import ocr_utils
     OCR_AVAILABLE = ocr_utils.OCR_AVAILABLE
     OCR_DPI = ocr_utils.OCR_DPI
-    OCR_LANG = ocr_utils.OCR_LANG
+    OCR_LANG = "eng" if TESSERACT_AVAILABLE else "en"  # Use eng for Tesseract, en for PaddleOCR
     MARGIN = ocr_utils.MARGIN
     extract_text_with_ocr_fallback = ocr_utils.extract_text_with_ocr_fallback
     list_available_languages = ocr_utils.list_available_languages
@@ -32,9 +41,9 @@ except ImportError as e:
     print(f"Importing ocr_utils: {str(e)}")
     print(f"Looking for ocr_utils in: {script_dir}")
     # Define fallback constants
-    OCR_AVAILABLE = False
+    OCR_AVAILABLE = TESSERACT_AVAILABLE  # Use Tesseract availability
     OCR_DPI = 400
-    OCR_LANG = "en"
+    OCR_LANG = "eng" if TESSERACT_AVAILABLE else "en"
     MARGIN = 30
     
     # Fallback implementation of extract_text_with_ocr_fallback
@@ -219,7 +228,10 @@ def copy_ocr_pdfs(templates_folder, ocr_folder, ocr_used_files):
 def harvest(templates_folder, out_json, use_ocr=False, ocr_language=OCR_LANG, ocr_dpi=OCR_DPI, save_debug_images=False, use_gpu=False, copy_ocr_pdfs_folder=None):
     """Process PDFs, extract widgets and context, with optional OCR."""
     if use_ocr and not OCR_AVAILABLE:
-        tqdm.write("WARNING: OCR requested but PaddleOCR is not installed. Install with: pip install paddleocr")
+        tqdm.write("WARNING: OCR requested but Tesseract is not installed. Install with:")
+        tqdm.write("  - For Amazon Linux: sudo dnf install -y tesseract tesseract-langpack-eng")
+        tqdm.write("  - For Ubuntu/Debian: sudo apt-get install -y tesseract-ocr tesseract-ocr-eng")
+        tqdm.write("  - For RHEL/CentOS: sudo yum install -y tesseract tesseract-langpack-eng")
         tqdm.write("WARNING: Continuing without OCR support.")
         use_ocr = False
     

@@ -19,6 +19,15 @@ import numpy as np
 import re
 import shutil
 
+# Try Tesseract first
+try:
+    import pytesseract
+    TESSERACT_AVAILABLE = True
+    print("INFO: Tesseract OCR available")
+except ImportError:
+    TESSERACT_AVAILABLE = False
+    print("WARNING: Tesseract not found, will try PaddleOCR")
+
 # Import the shared OCR utilities
 try:
     from ocr_utils import (
@@ -38,9 +47,9 @@ except ImportError:
         # Define fallback imports and constants
         from PIL import Image
         import cv2
-        OCR_AVAILABLE = False
+        OCR_AVAILABLE = TESSERACT_AVAILABLE  # Use Tesseract availability
         OCR_DPI = 400
-        OCR_LANG = "en"
+        OCR_LANG = "eng" if TESSERACT_AVAILABLE else "en"  # Use eng for Tesseract, en for PaddleOCR
         MARGIN = 30
 
 # Simple class to track OCR usage
