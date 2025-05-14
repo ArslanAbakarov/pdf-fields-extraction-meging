@@ -271,9 +271,9 @@ def propose_names(pdf_in, loaded_indexes, device, k=1, threshold=None, similarit
                     index_usage_counts[best_index] += 1
                 
                 # Apply the threshold
-                if best_score < threshold:
-                    tqdm.write(f"WARNING: Score {best_score:.4f} below threshold {threshold} for {current_name}. Keeping original name.")
-                    best_name = current_name
+                # if best_score < threshold:
+                #     tqdm.write(f"WARNING: Score {best_score:.4f} below threshold {threshold} for {current_name}. Keeping original name.")
+                #     best_name = current_name
                 
                 # Get context data for this match
                 context_match = best_metadata.get("context", "") if best_metadata else ""

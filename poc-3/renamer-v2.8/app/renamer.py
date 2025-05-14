@@ -105,7 +105,7 @@ SIMILARITY_METRICS = {
 
 # Default thresholds for different metrics
 DEFAULT_THRESHOLDS = {
-    "cosine": 0.7,  # Higher is better
+    "cosine": 0.5,  # Higher is better
     "euclidean": 0.3,  # Higher is better
     "dot": 0.5,  # Higher is better
     "cosine_sklearn": 0.7  # Higher is better
@@ -312,9 +312,9 @@ def rename_pdf(binary: bytes, k: int = 1, threshold: float = None,
                 index_usage_counts[best_index] += 1
             
             # Apply the threshold
-            if best_score < threshold:
-                print(f"WARNING: Score {best_score:.4f} below threshold {threshold} for {current_name}. Keeping original name.")
-                best_name = current_name
+            # if best_score < threshold:
+            #     print(f"WARNING: Score {best_score:.4f} below threshold {threshold} for {current_name}. Keeping original name.")
+            #     best_name = current_name
             
             # Get context data for this match
             context_match = best_metadata.get("context", "") if best_metadata else ""
