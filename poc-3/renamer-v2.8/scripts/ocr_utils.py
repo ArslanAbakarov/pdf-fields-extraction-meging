@@ -95,11 +95,8 @@ OCR_DPI = 400        # DPI for OCR processing (higher for better quality)
 OCR_LANG = "eng" if TESSERACT_OCR_AVAILABLE and not PADDLE_OCR_AVAILABLE else "en"  # Default language code
 MARGIN = 30          # Points around widget to grab context
 
-# Global PaddleOCR model instances (lazy-loaded)
-_ocr_models = {}
-
 def get_paddle_ocr_model(lang="en", use_gpu=False):
-    """Get or initialize a PaddleOCR model for the specified language."""
+    """Get a fresh PaddleOCR model instance."""
     if not PADDLE_OCR_AVAILABLE:
         return None
         
@@ -126,27 +123,20 @@ def get_paddle_ocr_model(lang="en", use_gpu=False):
     else:
         paddle_lang = lang_map.get(lang, lang)
     
-    # Create cache key based on language and GPU usage
-    key = f"{paddle_lang}_{use_gpu}"
-    
-    # Load model if not already cached
-    if key not in _ocr_models:
-        try:
-            tqdm.write(f"INFO: Initializing PaddleOCR model for language: {paddle_lang}")
-            # Initialize with minimal settings
-            _ocr_models[key] = PaddleOCR(
-                lang=paddle_lang,
-                use_gpu=use_gpu,
-                show_log=False
-            )
-        except Exception as e:
-            tqdm.write(f"WARNING: Error loading PaddleOCR model: {str(e)}")
-            if paddle_lang != "en":
-                tqdm.write("WARNING: Falling back to English OCR model")
-                return get_paddle_ocr_model("en", use_gpu)
-            return None
-    
-    return _ocr_models[key]
+    try:
+        tqdm.write(f"INFO: Creating new PaddleOCR model for language: {paddle_lang}")
+        # Create a fresh instance each time
+        return PaddleOCR(
+            lang=paddle_lang,
+            use_gpu=use_gpu,
+            show_log=False
+        )
+    except Exception as e:
+        tqdm.write(f"WARNING: Error creating PaddleOCR model: {str(e)}")
+        if paddle_lang != "en":
+            tqdm.write("WARNING: Falling back to English OCR model")
+            return get_paddle_ocr_model("en", use_gpu)
+        return None
 
 def preprocess_image_for_ocr(image):
     """Apply advanced preprocessing to improve OCR accuracy.
@@ -217,25 +207,16 @@ def preprocess_image_for_ocr(image):
     return results
 
 def paddle_ocr_text(img, lang="en", use_gpu=False):
-    """Extract text from image using PaddleOCR.
-    
-    Args:
-        img: NumPy array image (BGR format for colored, grayscale otherwise)
-        lang: Language code for OCR
-        use_gpu: Whether to use GPU acceleration
-        
-    Returns:
-        Extracted text as string
-    """
+    """Extract text from image using PaddleOCR."""
     if not PADDLE_OCR_AVAILABLE:
         return ""
     
-    # Get OCR model for specified language
-    ocr_model = get_paddle_ocr_model(lang, use_gpu)
-    if ocr_model is None:
-        return ""
-    
     try:
+        # Get a fresh OCR model
+        ocr_model = get_paddle_ocr_model(lang, use_gpu)
+        if ocr_model is None:
+            return ""
+        
         # Ensure image is in RGB format (PaddleOCR expects RGB)
         if len(img.shape) == 2:  # Grayscale
             img_rgb = cv2.cvtColor(img, cv2.COLOR_GRAY2RGB)
