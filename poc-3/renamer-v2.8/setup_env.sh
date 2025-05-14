@@ -8,9 +8,12 @@ echo "[*] Creating new env: $ENV_NAME"
 conda create -n "$ENV_NAME" python=3.11 numpy=1.26 -y
 conda activate "$ENV_NAME"
 
+conda install -c conda-forge numpy=1.24.4
+conda install -c conda-forge pytorch
+
 echo "[*] Installing pip packages"
 pip install \
-    pymupdf \
+    # pymupdf \
     sentence-transformers \
     opencv-python-headless \
     pytesseract \
@@ -21,7 +24,8 @@ pip install fastapi
 pip install uvicorn
 
 pip install python-multipart
-pip install pymupdf
+# pip install pymupdf
+pip install pymupdf==1.21.1
 pip install paddleocr
 python -c "from paddleocr import PaddleOCR; ocr = PaddleOCR()"
 pip install numpy==1.24.4 scipy==1.10.1    
